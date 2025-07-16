@@ -1,0 +1,21 @@
+version: 0.2
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+      nodejs: 18
+    commands:
+      - npm install -g aws-cdk
+      - python -m venv .venv
+      - source .venv/bin/activate
+      - pip install -r requirements-dev.txt
+      - pip install -r requirements.txt
+  build:
+    commands:
+      - source .venv/bin/activate
+      - cdk synth -c stage=dev
+artifacts:
+  files:
+    - '**/*'
+  base-directory: cdk.out
+  name: GlueAppArtifact
