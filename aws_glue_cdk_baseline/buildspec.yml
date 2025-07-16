@@ -1,19 +1,23 @@
 version: 0.2
+
 phases:
   install:
     runtime-versions:
       python: 3.11
       nodejs: 18
     commands:
-      - npm install -g aws-cdk
+      - echo "Installing Python dependencies..."
       - python -m venv .venv
       - source .venv/bin/activate
       - pip install -r requirements-dev.txt
       - pip install -r requirements.txt
+      - echo "Installing CDK CLI locally (not globally)..."
+      - npm install aws-cdk@2  # local install only
   build:
     commands:
       - source .venv/bin/activate
-      - cdk synth -c stage=dev
+      - echo "Running cdk synth via npx"
+      - npx cdk synth -c stage=dev
 artifacts:
   files:
     - '**/*'
