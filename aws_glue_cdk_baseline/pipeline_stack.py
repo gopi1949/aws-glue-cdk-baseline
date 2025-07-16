@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT-0
 from aws_cdk.pipelines import CodePipelineSource
 from aws_cdk.pipelines import CodePipeline, ShellStep
-from aws_cdk.aws_codebuild import LinuxBuildImage, BuildEnvironment
+from aws_cdk.aws_codebuild import LinuxBuildImage, BuildEnvironment, ComputeType
 from aws_cdk import SecretValue
 from typing import Dict
 from aws_cdk import (
@@ -49,27 +49,48 @@ class PipelineStack(Stack):
             synth=CodeBuildStep("CdkSynth_UnitTest",
                 input=source,
                 install_commands=[
+                    # Create and activate virtual environment
+                    "python -m venv .venv",
+                    "source .venv/bin/activate",
+                    # Install dependencies
                     "pip install -r requirements-dev.txt",
                     "pip install -r requirements.txt",
-                    #commented
-                    "python3 -m venv .venv",
-                    "source .venv/bin/activate",
-                    
+                    # Install CDK globally
+                    "npm install -g aws-cdk",
                 ], 
                 commands=[
+                    # Activate virtual environment for all commands
+                    "source .venv/bin/activate",
+                    
+                    # Run CDK synthesis
                     "cdk synth -c stage=dev",
-                    # Unit test for CDK stack
-                    "python -m pytest",
-                    # Unit test for job scripts
-                    "WORKSPACE_LOCATION=$(pwd)/aws_glue_cdk_baseline/job_scripts/",
-                    "echo $WORKSPACE_LOCATION",
+                    
+                    # Run CDK unit tests
+                    "python -m pytest tests/unit/ -v",
+                    
+                    # Set up Glue job testing environment
+                    "export WORKSPACE_LOCATION=$(pwd)/aws_glue_cdk_baseline/job_scripts/",
+                    "echo 'Workspace location: $WORKSPACE_LOCATION'",
+                    
+                    # Pull Glue Docker image
                     "docker pull amazon/aws-glue-libs:glue_libs_4.0.0_image_01",
-                    "docker run -v ~/.aws:/home/glue_user/.aws -v $WORKSPACE_LOCATION:/home/glue_user/workspace/"
-                    " -e DISABLE_SSL=true --rm -p 4040:4040 -p 18080:18080"
-                    f" -e AWS_REGION={config['pipelineAccount']['awsAccountId']} -e AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"
-                    " --name glue_pytest amazon/aws-glue-libs:glue_libs_4.0.0_image_01 -c \"python3 -m pytest\"",
+                    
+                    # Run Glue job tests in Docker container
+                    "docker run --rm " +
+                    "-v ~/.aws:/home/glue_user/.aws " +
+                    "-v $WORKSPACE_LOCATION:/home/glue_user/workspace/ " +
+                    "-e DISABLE_SSL=true " +
+                    f"-e AWS_REGION={config['pipelineAccount']['awsRegion']} " +
+                    "-e AWS_CONTAINER_CREDENTIALS_RELATIVE_URI " +
+                    "--name glue_pytest " +
+                    "amazon/aws-glue-libs:glue_libs_4.0.0_image_01 " +
+                    "-c \"cd /home/glue_user/workspace && python3 -m pytest -v\"",
                 ],
-                build_environment=BuildEnvironment(build_image=LinuxBuildImage.STANDARD_7_0) , # ✅ Fix WebAssembly
+                build_environment=BuildEnvironment(
+                    build_image=LinuxBuildImage.STANDARD_7_0,
+                    privileged=True,  # Required for Docker-in-Docker
+                    compute_type=ComputeType.MEDIUM,  # More resources for Docker operations
+                ),
                 role_policy_statements=[
                     # S3 read only
                     iam.PolicyStatement(
@@ -98,6 +119,24 @@ class PipelineStack(Stack):
                             "arn:aws:glue:*:*:database/*",
                             "arn:aws:glue:*:*:table/*"
                         ]
+                    ),
+                    # Docker and ECR permissions
+                    iam.PolicyStatement(
+                        actions=[
+                            "ecr:GetAuthorizationToken",
+                            "ecr:BatchCheckLayerAvailability",
+                            "ecr:GetDownloadUrlForLayer",
+                            "ecr:BatchGetImage",
+                        ],
+                        resources=["*"]
+                    ),
+                    # STS permissions for cross-account access
+                    iam.PolicyStatement(
+                        actions=[
+                            "sts:AssumeRole",
+                            "sts:GetCallerIdentity",
+                        ],
+                        resources=["*"]
                     )
                 ],
                  
@@ -127,14 +166,21 @@ class PipelineStack(Stack):
         dev_stage.add_post(CodeBuildStep("IntegrationTest",
                 input=source,
                 install_commands=[
+                    "python -m venv .venv",
+                    "source .venv/bin/activate",
                     "pip install -r requirements-dev.txt"
                 ],
                 commands=[
+                    "source .venv/bin/activate",
                     # Integ test for Glue App stack
                     f"python $(pwd)/tests/integ/integ_test_glue_app_stack.py --account {str(config['devAccount']['awsAccountId'])} --region {config['devAccount']['awsRegion']} --stage-name {dev_stage_name} --sts-role-arn {dev_stage_app.iam_role_arn}",
                 ],
+                build_environment=BuildEnvironment(
+                    build_image=LinuxBuildImage.STANDARD_7_0,
+                    compute_type=ComputeType.SMALL,
+                ),
                 role_policy_statements=[
-                    # Glue only
+                    # STS for cross-account access
                     iam.PolicyStatement(
                         actions=[
                             "sts:AssumeRole"
@@ -165,3 +211,4 @@ class PipelineStack(Stack):
         )
         prod_stage = pipeline.add_stage(prod_stage_app)
         prod_stage.add_pre(ManualApprovalStep("Approval"))
+        
