@@ -1,9 +1,12 @@
 version: 0.2
+env:
+  variables:
+    NODE_OPTIONS: "--experimental-wasm-reftypes"
 phases:
   install:
     runtime-versions:
       python: 3.9
-      nodejs: 16  # Changed from 18 to 16
+      nodejs: 18
     commands:
       - npm install -g aws-cdk
       - python -m venv .venv
