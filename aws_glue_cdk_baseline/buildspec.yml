@@ -1,14 +1,12 @@
 version: 0.2
-env:
-  variables:
-    NODE_OPTIONS: "--experimental-wasm-reftypes"
 phases:
   install:
     runtime-versions:
       python: 3.9
       nodejs: 18
     commands:
-      - npm install -g aws-cdk
+      # Use CDK v2.60.0 - before WebAssembly issues
+      - npm install -g aws-cdk@2.60.0
       - python -m venv .venv
       - source .venv/bin/activate
       - pip install -r requirements-dev.txt
