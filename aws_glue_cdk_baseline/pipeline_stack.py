@@ -1,6 +1,8 @@
 # Copyright 2023 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 from aws_cdk.pipelines import CodePipelineSource
+from aws_cdk.pipelines import CodePipeline, ShellStep
+from aws_cdk.aws_codebuild import LinuxBuildImage, BuildEnvironment
 from aws_cdk import SecretValue
 from typing import Dict
 from aws_cdk import (
@@ -53,7 +55,7 @@ class PipelineStack(Stack):
                     "python3 -m venv .venv",
                     "source .venv/bin/activate",
                     "npm install -g aws-cdk",
-                ],
+                ], 
                 commands=[
                     "cdk synth -c stage=dev",
                     # Unit test for CDK stack
@@ -67,6 +69,7 @@ class PipelineStack(Stack):
                     f" -e AWS_REGION={config['pipelineAccount']['awsAccountId']} -e AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"
                     " --name glue_pytest amazon/aws-glue-libs:glue_libs_4.0.0_image_01 -c \"python3 -m pytest\"",
                 ],
+                
                 role_policy_statements=[
                     # S3 read only
                     iam.PolicyStatement(
@@ -96,7 +99,8 @@ class PipelineStack(Stack):
                             "arn:aws:glue:*:*:table/*"
                         ]
                     )
-                ]
+                ],
+                 build_environment=BuildEnvironment(build_image=LinuxBuildImage.STANDARD_7_0)  # ✅ Fix WebAssembly crash
             )
         )
         
