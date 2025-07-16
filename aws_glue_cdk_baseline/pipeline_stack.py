@@ -54,7 +54,7 @@ class PipelineStack(Stack):
                     "npm install -g aws-cdk@2",
                     "python3 -m venv .venv",
                     "source .venv/bin/activate",
-                    "npm install -g aws-cdk",
+                    
                 ], 
                 commands=[
                     "cdk synth -c stage=dev",
