@@ -69,7 +69,7 @@ class PipelineStack(Stack):
                     f" -e AWS_REGION={config['pipelineAccount']['awsAccountId']} -e AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"
                     " --name glue_pytest amazon/aws-glue-libs:glue_libs_4.0.0_image_01 -c \"python3 -m pytest\"",
                 ],
-                
+                build_environment=BuildEnvironment(build_image=LinuxBuildImage.STANDARD_7_0) , # ✅ Fix WebAssembly
                 role_policy_statements=[
                     # S3 read only
                     iam.PolicyStatement(
@@ -100,7 +100,7 @@ class PipelineStack(Stack):
                         ]
                     )
                 ],
-                 build_environment=BuildEnvironment(build_image=LinuxBuildImage.STANDARD_7_0)  # ✅ Fix WebAssembly crash
+                 
             )
         )
         
