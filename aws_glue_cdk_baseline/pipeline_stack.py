@@ -1,5 +1,7 @@
 # Copyright 2023 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
+from aws_cdk.pipelines import CodePipelineSource
+from aws_cdk import SecretValue
 from typing import Dict
 from aws_cdk import (
     Environment,
@@ -34,10 +36,10 @@ class PipelineStack(Stack):
             codecommit_repo.repository_name
         )
 
-        source = CodePipelineSource.code_commit(
-            repository=i_codecommit_repo,
-            branch="main"
-        )
+        source = CodePipelineSource.git_hub( "gopi1949/aws-glue-cdk-baseline","main",
+                                            authentication=SecretValue.secrets_manager("github-token")
+                                            ) # fallback to polling mode
+        
         pipeline = CodePipeline(self, "GluePipeline",
             pipeline_name="GluePipeline",
             cross_account_keys=True,
@@ -47,6 +49,9 @@ class PipelineStack(Stack):
                 install_commands=[
                     "pip install -r requirements-dev.txt",
                     "pip install -r requirements.txt",
+                    "npm install -g aws-cdk@2",
+                    "python3 -m venv .venv",
+                    "source .venv/bin/activate",
                     "npm install -g aws-cdk",
                 ],
                 commands=[
