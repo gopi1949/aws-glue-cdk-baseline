@@ -1,24 +1,19 @@
 version: 0.2
-
 phases:
   install:
     runtime-versions:
-      python: 3.11
-      nodejs: 18
+      python: 3.9
+      nodejs: 16  # Changed from 18 to 16
     commands:
-      - echo "Installing CDK and Python dependencies"
-      - npm install aws-cdk@2     # ✅ local install
+      - npm install -g aws-cdk
       - python -m venv .venv
       - source .venv/bin/activate
-      - pip install -r requirements.txt
       - pip install -r requirements-dev.txt
-
+      - pip install -r requirements.txt
   build:
     commands:
       - source .venv/bin/activate
-      - echo "Running CDK synth via npx"
-      - npx cdk synth -c stage=dev     # ✅ runs CDK using Node.js 18
-
+      - cdk synth -c stage=dev
 artifacts:
   files:
     - '**/*'
