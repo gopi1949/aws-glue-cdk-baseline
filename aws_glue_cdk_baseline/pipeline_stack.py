@@ -51,7 +51,7 @@ class PipelineStack(Stack):
                 install_commands=[
                     "pip install -r requirements-dev.txt",
                     "pip install -r requirements.txt",
-                    "npm install -g aws-cdk@2",
+                    #commented
                     "python3 -m venv .venv",
                     "source .venv/bin/activate",
                     
