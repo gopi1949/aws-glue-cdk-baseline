@@ -1,23 +1,24 @@
 version: 0.2
-
 phases:
   install:
     runtime-versions:
-      python: 3.11
+      python: 3.9
       nodejs: 18
     commands:
-      - echo "Installing Python dependencies..."
+      # Install CDK CLI globally with WebAssembly support
+      - npm install -g aws-cdk
+      # Create and activate virtual environment
       - python -m venv .venv
       - source .venv/bin/activate
+      # Install Python dependencies
       - pip install -r requirements-dev.txt
       - pip install -r requirements.txt
-      - echo "Installing CDK CLI locally (not globally)..."
-      - npm install aws-cdk@2  # local install only
   build:
     commands:
+      # Activate virtual environment
       - source .venv/bin/activate
-      - echo "Running cdk synth via npx"
-      - npx cdk synth -c stage=dev
+      # Run CDK synthesis with WebAssembly experimental flags
+      - node --experimental-wasm-reftypes $(which cdk) synth -c stage=dev
 artifacts:
   files:
     - '**/*'
